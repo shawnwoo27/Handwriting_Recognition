@@ -47,17 +47,10 @@ cv2.imshow('contours', color)
 k = cv2.waitKey(0)
 cv2.destroyAllWindows()
 
-for i in range(0,len(digit_arr2)) :
-    for j in range(len(digit_arr2[i])) :
-        count += 1
-        if i == 0:
-            width = digit_arr2[i][j].shape[1]
-            height = digit_arr2[i][j].shape[0]
-            tmp = (height - width)/2
-            mask = np.zeros((height,height))
-            mask[0:height,int(tmp):int(tmp)+width] = digit_arr2[i][j]
-            digit_arr2[i][j] = cv2.resize(mask,(32,32))
-        else:
-            digit_arr2[i][j] = cv2.resize(digit_arr2[i][j],(32,32))
-        if i == 9 : i = -1
-        cv2.imwrite('data/'+str(i+1)+'_'+str(j)+'.png',digit_arr2[i][j])
+'''
+for i in range(len(boundingRectangle_arr)):
+    img[i] = cv2.resize(img[i], (32, 32))
+    cv2.imwrite('data/'+str(i)+'.png', img[i])
+    print(i)
+'''
+
