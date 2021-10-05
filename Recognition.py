@@ -1,10 +1,12 @@
 import cv2
 import numpy as np
+import matplotlib.pyplot as plt
 
 filename = 'pictures/Jung.jpg'
 
 # 그레이 스케일로 변환
 src = cv2.imread(filename, cv2.IMREAD_GRAYSCALE)
+src = cv2.resize(src, (int(src.shape[1]/2), int(src.shape[0]/2)))
 cv2.imshow('gray', src)
 k = cv2.waitKey(0)
 cv2.destroyAllWindows()
