@@ -2,7 +2,8 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
-filename = 'pictures/Jung.jpg'
+picNum = 1
+filename = 'pictures/Jung_' + str(picNum) + '.jpg'
 
 # 그레이 스케일로 변환
 src = cv2.imread(filename, cv2.IMREAD_GRAYSCALE)
@@ -36,8 +37,21 @@ cv2.imshow('binary', binary)
 k = cv2.waitKey(0)
 cv2.destroyAllWindows()
 
+# kern_size = 2
+# kern = np.ones((kern_size, kern_size), np.uint8)
+# binary = cv2.dilate(binary, kern, iterations=2)
+# cv2.imshow('binary', binary)
+# k = cv2.waitKey(0)
+# cv2.destroyAllWindows()
+#
+# # 모폴로지 opening 연산
+# binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2)), iterations=2)
+# cv2.imshow('binary', binary)
+# k = cv2.waitKey(0)
+# cv2.destroyAllWindows()
+
 # 바를 정자 두껍게 만들기
-repeat = 5
+repeat = 3
 kern_size = 2
 kern = np.ones((kern_size, kern_size), np.uint8)
 binary = cv2.dilate(binary, kern, iterations=repeat)
@@ -70,6 +84,7 @@ cv2.destroyAllWindows()
 
 # 연산 데이터 저장용 변수 선언
 bR_arr = []
+del_arr = []
 digit_arr = []
 count = 0
 
@@ -77,23 +92,80 @@ count = 0
 for i in range(len(contours)):
     bin_tmp = binary.copy()
     x, y, w, h = cv2.boundingRect(contours[i])
-    bR_arr.append([x, y, w, h])
 
-# 나눈 이미지의 갯수 출력
-print(len(bR_arr))
+    if w and h > 6:
+        bR_arr.append([x, y, w, h])
+
+# 외곽선 박스를 x+y 순으로 정렬
+bR_arr = sorted(bR_arr, key=lambda num: num[0] + num[1], reverse=False)
+
+
+def is_overlap(rect, pt):
+    return rect[0] < pt[0] < rect[0]+rect[2] and rect[1] < pt[1] < rect[1]+rect[3] or \
+           rect[0] < pt[0]+pt[2] < rect[0]+rect[2] and rect[1] < pt[1] < rect[1]+rect[3] or \
+           rect[0] < pt[0] < rect[0]+rect[2] and rect[1] < pt[1]+pt[3] < rect[1]+rect[3] or \
+           rect[0] < pt[0]+pt[2] < rect[0]+rect[2] and rect[1] < pt[1]+pt[3] < rect[1]+rect[3]
+
+
+for i in range(len(bR_arr)-1):
+    # 좌상단 (x,y) = (bR_arr[i][0], bR_arr[i][1]),
+    # 우하단 (x+w, y+h) = (bR_arr[i][0] + bR_arr[i][2], bR_arr[i][1] + bR_arr[i][3])
+
+    if is_overlap(bR_arr[i], bR_arr[i+1]):
+        # 비교한 두 사각형 영역이 겹치면
+        area = bR_arr[i][2] * bR_arr[i][3]
+
+        if area / 3 < (bR_arr[i][0] + bR_arr[i][2] - bR_arr[i + 1][0]) * (
+                bR_arr[i][1] + bR_arr[i][3] - bR_arr[i + 1][1]):
+            # 자신의 크기의 1/4보다, 겹친 영역이 크면
+
+            if bR_arr[i][0] < bR_arr[i + 1][0]:
+                small_x = bR_arr[i][0]
+            else:
+                small_x = bR_arr[i + 1][0]
+
+            if bR_arr[i][1] < bR_arr[i + 1][1]:
+                small_y = bR_arr[i][1]
+            else:
+                small_y = bR_arr[i + 1][1]
+
+            if bR_arr[i][0] + bR_arr[i][2] > bR_arr[i + 1][0] + bR_arr[i + 1][2]:
+                big_w = bR_arr[i][0] + bR_arr[i][2] - small_x
+            else:
+                big_w = bR_arr[i + 1][0] + bR_arr[i + 1][2] - small_x
+
+            if bR_arr[i][1] + bR_arr[i][3] > bR_arr[i + 1][1] + bR_arr[i + 1][3]:
+                big_h = bR_arr[i][1] + bR_arr[i][3] - small_y
+            else:
+                big_h = bR_arr[i + 1][1] + bR_arr[i + 1][3] - small_y
+
+            # 두 영역을 합쳐 배열에 다시 넣어줌
+            bR_arr[i] = [small_x, small_y, big_w, big_h]
+            del_arr.append(i+1)
+            print(i)
+            print(bR_arr[i])
+
+
+# 겹친 두 영역 중 한 영역 삭제
+for i in range(len(del_arr)):
+    del bR_arr[del_arr[i]-i]
+
 
 # 원치 않는 데이터 분류 및 이미지 생성
 for x, y, w, h in bR_arr:
-    tmp_y = bin_tmp[y-2:y+h+2, x-2:x+w+2].shape[0]
-    tmp_x = bin_tmp[y-2:y+h+2, x-2:x+w+2].shape[1]
+    tmp_y = bin_tmp[y - 2:y + h + 2, x - 2:x + w + 2].shape[0]
+    tmp_x = bin_tmp[y - 2:y + h + 2, x - 2:x + w + 2].shape[1]
 
     if tmp_x and tmp_y > 10:
-        cv2.rectangle(color, (x-3, y-3), (x+w+3, y+h+3), (0, 0, 255), 1)
-        digit_arr.append(bin_tmp[y-2:y+h+2, x-2:x+w+2])
+        cv2.rectangle(color, (x - 2, y - 2), (x + w + 2, y + h + 2), (0, 0, 255), 1)
+        digit_arr.append(bin_tmp[y - 2:y + h + 2, x - 2:x + w + 2])
+
+# 나눈 이미지의 갯수 출력
+print(len(digit_arr))
 
 cv2.imshow('contours', color)
 k = cv2.waitKey(0)
 cv2.destroyAllWindows()
 
 for i in range(0, len(digit_arr)):
-    cv2.imwrite('data/'+str(i)+'.png', digit_arr[i])
+    cv2.imwrite('data/' + str(picNum) + '_' + str(i) + '.png', digit_arr[i])
