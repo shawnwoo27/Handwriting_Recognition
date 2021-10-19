@@ -83,9 +83,12 @@ k = cv2.waitKey(0)
 cv2.destroyAllWindows()
 
 # 연산 데이터 저장용 변수 선언
-bR_arr = []
-del_arr = []
-digit_arr = []
+bR_arr = []     # 사각형 구획 저장
+del_arr = []    # 삭제할 bR_arr 인덱스 저장
+del_arr2 = []   # 삭제할 bR_arr 인덱스 저장
+digit_arr = []  # 이미지 저장용
+maskHorizontal_arr = []   # 마스크 이미지 인덱스 저장
+maskVertical_arr = []   # 마스크 이미지 인덱스 저장
 count = 0
 
 # 검출한 외곽선에 사각형을 그려서 배열에 추가
@@ -100,56 +103,112 @@ for i in range(len(contours)):
 bR_arr = sorted(bR_arr, key=lambda num: num[0] + num[1], reverse=False)
 
 
-def is_overlap(rect, pt):
-    return rect[0] < pt[0] < rect[0]+rect[2] and rect[1] < pt[1] < rect[1]+rect[3] or \
-           rect[0] < pt[0]+pt[2] < rect[0]+rect[2] and rect[1] < pt[1] < rect[1]+rect[3] or \
-           rect[0] < pt[0] < rect[0]+rect[2] and rect[1] < pt[1]+pt[3] < rect[1]+rect[3] or \
-           rect[0] < pt[0]+pt[2] < rect[0]+rect[2] and rect[1] < pt[1]+pt[3] < rect[1]+rect[3]
+def is_overlap(rect, rect2):
+    return rect[0] < rect2[0] < rect[0] + rect[2] and rect[1] < rect2[1] < rect[1] + rect[3] or \
+           rect[0] < rect2[0] + rect2[2] < rect[0] + rect[2] and rect[1] < rect2[1] < rect[1] + rect[3] or \
+           rect[0] < rect2[0] < rect[0] + rect[2] and rect[1] < rect2[1] + rect2[3] < rect[1] + rect[3] or \
+           rect[0] < rect2[0] + rect2[2] < rect[0] + rect[2] and rect[1] < rect2[1] + rect2[3] < rect[1] + rect[3]
 
 
-for i in range(len(bR_arr)-1):
+for i in range(len(bR_arr) - 1):
     # 좌상단 (x,y) = (bR_arr[i][0], bR_arr[i][1]),
     # 우하단 (x+w, y+h) = (bR_arr[i][0] + bR_arr[i][2], bR_arr[i][1] + bR_arr[i][3])
+    rect_x = bR_arr[i][0]
+    rect_y = bR_arr[i][1]
+    rect_w = bR_arr[i][2]
+    rect_h = bR_arr[i][3]
 
-    if is_overlap(bR_arr[i], bR_arr[i+1]):
+    rect2_x = bR_arr[i + 1][0]
+    rect2_y = bR_arr[i + 1][1]
+    rect2_w = bR_arr[i + 1][2]
+    rect2_h = bR_arr[i + 1][3]
+
+    if is_overlap(bR_arr[i], bR_arr[i + 1]):
         # 비교한 두 사각형 영역이 겹치면
-        area = bR_arr[i][2] * bR_arr[i][3]
+        area = rect_w * rect_h
 
-        if area / 3 < (bR_arr[i][0] + bR_arr[i][2] - bR_arr[i + 1][0]) * (
-                bR_arr[i][1] + bR_arr[i][3] - bR_arr[i + 1][1]):
-            # 자신의 크기의 1/4보다, 겹친 영역이 크면
+        if area / 3 < (rect_x + rect_w - rect2_x) * (rect_y + rect_h - rect2_y):
+            # 자신의 크기의 1/3보다, 겹친 영역이 크면
 
-            if bR_arr[i][0] < bR_arr[i + 1][0]:
-                small_x = bR_arr[i][0]
+            if rect_x < rect2_x:
+                small_x = rect_x
             else:
-                small_x = bR_arr[i + 1][0]
+                small_x = rect2_x
 
-            if bR_arr[i][1] < bR_arr[i + 1][1]:
-                small_y = bR_arr[i][1]
+            if rect_y < rect2_y:
+                small_y = rect_y
             else:
-                small_y = bR_arr[i + 1][1]
+                small_y = rect2_y
 
-            if bR_arr[i][0] + bR_arr[i][2] > bR_arr[i + 1][0] + bR_arr[i + 1][2]:
-                big_w = bR_arr[i][0] + bR_arr[i][2] - small_x
+            if rect_x + rect_w > rect2_x + rect2_w:
+                big_w = rect_x + rect_w - small_x
             else:
-                big_w = bR_arr[i + 1][0] + bR_arr[i + 1][2] - small_x
+                big_w = rect2_x + rect2_w - small_x
 
-            if bR_arr[i][1] + bR_arr[i][3] > bR_arr[i + 1][1] + bR_arr[i + 1][3]:
-                big_h = bR_arr[i][1] + bR_arr[i][3] - small_y
+            if rect_y + rect_h > rect2_y + rect2_h:
+                big_h = rect_y + rect_h - small_y
             else:
-                big_h = bR_arr[i + 1][1] + bR_arr[i + 1][3] - small_y
+                big_h = rect2_y + rect2_h - small_y
 
             # 두 영역을 합쳐 배열에 다시 넣어줌
             bR_arr[i] = [small_x, small_y, big_w, big_h]
-            del_arr.append(i+1)
-            print(i)
-            print(bR_arr[i])
-
+            del_arr.append(i + 1)
+            # print(i)
+            # print(bR_arr[i])
 
 # 겹친 두 영역 중 한 영역 삭제
 for i in range(len(del_arr)):
-    del bR_arr[del_arr[i]-i]
+    del bR_arr[del_arr[i] - i]
 
+# for i in range(len(bR_arr)-1, 0, -1):
+#     # 좌상단 (x,y) = (bR_arr[i][0], bR_arr[i][1]),
+#     # 우하단 (x+w, y+h) = (bR_arr[i][0] + bR_arr[i][2], bR_arr[i][1] + bR_arr[i][3])
+#     rect_x = bR_arr[i][0]
+#     rect_y = bR_arr[i][1]
+#     rect_w = bR_arr[i][2]
+#     rect_h = bR_arr[i][3]
+#
+#     rect2_x = bR_arr[i-1][0]
+#     rect2_y = bR_arr[i-1][1]
+#     rect2_w = bR_arr[i-1][2]
+#     rect2_h = bR_arr[i-1][3]
+#
+#     if is_overlap(bR_arr[i], bR_arr[i-1]):
+#         # 비교한 두 사각형 영역이 겹치면
+#         area = rect_w * rect_h
+#
+#         if area / 3 < (rect_x + rect_w - rect2_x) * (rect_y + rect_h - rect2_y):
+#             # 자신의 크기의 1/3보다, 겹친 영역이 크면
+#
+#             if rect_x < rect2_x:
+#                 small_x = rect_x
+#             else:
+#                 small_x = rect2_x
+#
+#             if rect_y < rect2_y:
+#                 small_y = rect_y
+#             else:
+#                 small_y = rect2_y
+#
+#             if rect_x + rect_w > rect2_x + rect2_w:
+#                 big_w = rect_x + rect_w - small_x
+#             else:
+#                 big_w = rect2_x + rect2_w - small_x
+#
+#             if rect_y + rect_h > rect2_y + rect2_h:
+#                 big_h = rect_y + rect_h - small_y
+#             else:
+#                 big_h = rect2_y + rect2_h - small_y
+#
+#             # 두 영역을 합쳐 배열에 다시 넣어줌
+#             bR_arr[i] = [small_x, small_y, big_w, big_h]
+#             del_arr2.append(i-1)
+#             print(i)
+#             print(bR_arr[i])
+#
+# # 겹친 두 영역 중 한 영역 삭제
+# for i in range(len(del_arr2)):
+#     del bR_arr[del_arr2[i]-i]
 
 # 원치 않는 데이터 분류 및 이미지 생성
 for x, y, w, h in bR_arr:
@@ -167,5 +226,41 @@ cv2.imshow('contours', color)
 k = cv2.waitKey(0)
 cv2.destroyAllWindows()
 
+# 이미지 분할 저장
 for i in range(0, len(digit_arr)):
+    # digit_arr[i] = cv2.resize(digit_arr[i], (32, 32))
+    cv2.imwrite('data/' + str(picNum) + '_' + str(i) + '.png', digit_arr[i])
+
+# 이미지가 세로로만 길거나, 가로로만 긴 경우 해당 이미지의 인덱스 저장
+for i in range(0, len(digit_arr)):
+    img = cv2.imread('data/' + str(picNum) + '_' + str(i) + '.png')
+    height, width, channel = img.shape
+
+    if (width // height) > 2:
+        maskHorizontal_arr.append(i)
+
+    if (height // width) > 2:
+        maskVertical_arr.append(i)
+
+# 이미지 마스킹 후, 저장
+for i in range(0, len(digit_arr)):
+    for item in maskHorizontal_arr:
+        if item == i:
+            width = digit_arr[i].shape[1]
+            height = digit_arr[i].shape[0]
+            tmp = (width - height) / 2
+            mask = np.zeros((width, width))
+            mask[int(tmp):int(tmp) + height, 0:width] = digit_arr[i]
+            digit_arr[i] = cv2.resize(mask, (32, 32))
+
+    for item in maskVertical_arr:
+        if item == i:
+            width = digit_arr[i].shape[1]
+            height = digit_arr[i].shape[0]
+            tmp = (height - width) / 2
+            mask = np.zeros((height, height))
+            mask[0:height, int(tmp):int(tmp) + width] = digit_arr[i]
+            digit_arr[i] = cv2.resize(mask, (32, 32))
+
+    digit_arr[i] = cv2.resize(digit_arr[i], (32, 32))
     cv2.imwrite('data/' + str(picNum) + '_' + str(i) + '.png', digit_arr[i])
