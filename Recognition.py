@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
-picNum = 1
+picNum = 3
 filename = 'pictures/Jung_' + str(picNum) + '.jpg'
 
 # 그레이 스케일로 변환
