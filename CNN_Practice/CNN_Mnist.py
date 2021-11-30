@@ -11,11 +11,6 @@ sys.path.append(os.pardir)  # 부모 디렉터리의 파일을 가져올 수 있
 
 
 class SimpleConvNet:
-    """
-    다음과 같은 CNN을 구성한다.
-    → Conv → ReLU → Pooling → Affine → ReLU → Affine → Softmax →
-    전체 구현은 simple_convnet.py 참고
-    """
     def __init__(self, input_dim=(1, 28, 28),
                  conv_param={'filter_num': 30, 'filter_size': 5,
                              'pad': 0, 'stride': 1},
@@ -57,13 +52,13 @@ class SimpleConvNet:
         self.last_layer = SoftmaxWithLoss()
 
     def predict(self, x):
-        """추론을 수행"""
+        # 추론 수행
         for layer in self.layers.values():
             x = layer.forward(x)
         return x
 
     def loss(self, x, t):
-        """손실함수 값 계산"""
+        # 손실함수 계산
         y = self.predict(x)
         return self.last_layer.forward(y, t)
 
@@ -83,7 +78,7 @@ class SimpleConvNet:
         return acc / x.shape[0]
 
     def gradient(self, x, t):
-        """오차역전파법으로 기울기를 구함"""
+        # 오차 역전파법
         # 순전파
         self.loss(x, t)
 
@@ -139,10 +134,3 @@ plt.ylabel("accuracy")
 plt.ylim(0, 1.0)
 plt.legend(loc='lower right')
 plt.show()
-
-"""
-=============== Final Test Accuracy ===============
-test acc:0.959
-
-전체로 학습했을 경우 약 98%까지 가능
-"""
